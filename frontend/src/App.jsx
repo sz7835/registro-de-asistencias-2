@@ -4,23 +4,25 @@ import axios from 'axios';
 function App() {
   const [idPersona, setIdPersona] = useState('');
   const [idActividad, setIdActividad] = useState('');
-  const [tiposActividad, setTiposActividad] = useState([]);
+  const [activityTypes, setActivityTypes] = useState([]);
   const [mensaje, setMensaje] = useState('');
   const [registros, setRegistros] = useState([]);
 
-  // ✅ Load dropdown values from backend
   useEffect(() => {
     axios.get('http://localhost:5000/actividades/tipoActividad')
-      .then(response => setTiposActividad(response.data))
+      .then(response => setActivityTypes(response.data))
       .catch(error => console.error('Error al cargar actividades', error));
   }, []);
 
-  // ✅ POST form: Register actividad
   const handleRegistrar = async () => {
     try {
       const res = await axios.post('http://localhost:5000/actividades/create', {
         id_persona: parseInt(idPersona),
-        id_tipo_actividad: parseInt(idActividad)
+        id_tipo_actividad: parseInt(idActividad),
+        fecha: "2025-07-17",
+        hora: "13:30",
+        detalle: "",
+        createUser: "szavala"
       });
       setMensaje(res.data.message || 'Registro exitoso');
     } catch (err) {
@@ -32,7 +34,6 @@ function App() {
     }
   };
 
-  // ✅ GET filter: Buscar registros
   const handleBuscar = async () => {
     try {
       const res = await axios.get(`http://localhost:5000/actividades/filter?id_persona=${idPersona}`);
@@ -66,7 +67,9 @@ function App() {
           onChange={(e) => setIdActividad(e.target.value)}
         >
           <option value="">Seleccionar una actividad</option>
-          {tiposActividad.map((tipo) => (
+
+          {/* ✅ Show only unique activity names */}
+          {[...new Map(activityTypes.map(tipo => [tipo.nombre, tipo])).values()].map((tipo) => (
             <option key={tipo.id} value={tipo.id}>
               {tipo.nombre}
             </option>
@@ -108,3 +111,4 @@ function App() {
 }
 
 export default App;
+

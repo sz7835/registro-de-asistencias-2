@@ -1,53 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useEffect, useState } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "./App.css";
 
 function App() {
-  const [idPersona, setIdPersona] = useState('');
-  const [idActividad, setIdActividad] = useState('');
-  const [activityTypes, setActivityTypes] = useState([]);
-  const [mensaje, setMensaje] = useState('');
+  const [idPersona, setIdPersona] = useState("");
+  const [idTipoActividad, setIdTipoActividad] = useState("");
+  const [tiposActividad, setTiposActividad] = useState([]);
   const [registros, setRegistros] = useState([]);
+  const [mensaje, setMensaje] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [registrando, setRegistrando] = useState(false);
 
+  // Cargar tipos de actividad al iniciar
   useEffect(() => {
-    axios.get('http://localhost:5000/actividades/tipoActividad')
-      .then(response => setActivityTypes(response.data))
-      .catch(error => console.error('Error al cargar actividades', error));
+    fetch("http://localhost:5000/actividades/tipoActividad")
+      .then((response) => response.json())
+      .then((data) => setTiposActividad(data));
   }, []);
 
-  const handleRegistrar = async () => {
+  const registrar = async () => {
+    if (!idPersona || !idTipoActividad) {
+      setMensaje("Por favor completa todos los campos.");
+      return;
+    }
+
+    setMensaje("");
+    setRegistrando(true);
+
     try {
-      const res = await axios.post('http://localhost:5000/actividades/create', {
-        id_persona: parseInt(idPersona),
-        id_tipo_actividad: parseInt(idActividad),
-        fecha: "2025-07-17",
-        hora: "13:30",
-        detalle: "",
-        createUser: "szavala"
+      const response = await fetch("http://localhost:5000/actividades/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_persona: parseInt(idPersona),
+          id_tipo_actividad: parseInt(idTipoActividad),
+        }),
       });
-      setMensaje(res.data.message || 'Registro exitoso');
-    } catch (err) {
-      if (err.response?.data?.error) {
-        setMensaje(err.response.data.error);
+
+      const data = await response.json();
+      if (response.ok) {
+        setMensaje("Registrado con éxito.");
       } else {
-        setMensaje('Error inesperado');
+        setMensaje(data.error || "Error al registrar.");
       }
+    } catch (error) {
+      setMensaje("Error de red al registrar.");
+    } finally {
+      setRegistrando(false);
     }
   };
 
-  const handleBuscar = async () => {
+  const buscar = async () => {
+    if (!idPersona) {
+      setMensaje("Por favor ingresa el ID de persona.");
+      return;
+    }
+
+    setMensaje("");
+    setBuscando(true);
+
     try {
-      const res = await axios.get(`http://localhost:5000/actividades/filter?id_persona=${idPersona}`);
-      setRegistros(res.data);
-      setMensaje('');
-    } catch (err) {
-      setMensaje('Error al buscar registros');
-      setRegistros([]);
+      const response = await fetch(
+        `http://localhost:5000/actividades/filter?id_persona=${idPersona}`
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        setRegistros(data);
+        if (data.length === 0) {
+          setMensaje("No se encontraron registros.");
+        }
+      } else {
+        setMensaje(data.error || "Error al buscar.");
+      }
+    } catch (error) {
+      setMensaje("Error de red al buscar.");
+    } finally {
+      setBuscando(false);
     }
   };
 
   return (
     <div className="container mt-5">
-      <h2 className="mb-4">Registro de Asistencia</h2>
+      <h1 className="mb-4">Registro de Asistencia</h1>
 
       <div className="mb-3">
         <label className="form-label">ID Persona</label>
@@ -63,13 +98,11 @@ function App() {
         <label className="form-label">Tipo de Actividad</label>
         <select
           className="form-select"
-          value={idActividad}
-          onChange={(e) => setIdActividad(e.target.value)}
+          value={idTipoActividad}
+          onChange={(e) => setIdTipoActividad(e.target.value)}
         >
           <option value="">Seleccionar una actividad</option>
-
-          {/* ✅ Show only unique activity names */}
-          {[...new Map(activityTypes.map(tipo => [tipo.nombre, tipo])).values()].map((tipo) => (
+          {tiposActividad.map((tipo) => (
             <option key={tipo.id} value={tipo.id}>
               {tipo.nombre}
             </option>
@@ -77,30 +110,38 @@ function App() {
         </select>
       </div>
 
-      <div className="d-flex gap-2 mb-4">
-        <button className="btn btn-primary" onClick={handleRegistrar}>
-          Registrar
+      <div className="mb-3 d-flex gap-2">
+        <button
+          className="btn btn-primary"
+          onClick={registrar}
+          disabled={registrando}
+        >
+          {registrando ? "Registrando..." : "Registrar"}
         </button>
-        <button className="btn btn-secondary" onClick={handleBuscar}>
-          Buscar
+        <button
+          className="btn btn-secondary"
+          onClick={buscar}
+          disabled={buscando}
+        >
+          {buscando ? "Buscando..." : "Buscar"}
         </button>
       </div>
 
       {mensaje && <div className="alert alert-info">{mensaje}</div>}
 
       {registros.length > 0 && (
-        <table className="table table-bordered mt-4">
-          <thead className="table-light">
+        <table className="table mt-4">
+          <thead>
             <tr>
               <th>ID Persona</th>
               <th>ID Tipo Actividad</th>
             </tr>
           </thead>
           <tbody>
-            {registros.map((r, index) => (
+            {registros.map((registro, index) => (
               <tr key={index}>
-                <td>{r.id_persona}</td>
-                <td>{r.id_tipo_actividad}</td>
+                <td>{registro.id_persona}</td>
+                <td>{registro.id_tipo_actividad}</td>
               </tr>
             ))}
           </tbody>
@@ -111,4 +152,3 @@ function App() {
 }
 
 export default App;
-

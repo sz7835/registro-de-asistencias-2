@@ -1,19 +1,21 @@
 from flask import Flask
 from flask_cors import CORS
-from flask_migrate import Migrate
-from .models import db
-from .routes import main
+from app.models import db
+from app.routes import main as main_blueprint
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def create_app():
     app = Flask(__name__)
     CORS(app)
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///attendees.db'
+    # ✅ Use remote MySQL from .env
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     db.init_app(app)
-    Migrate(app, db)
-
-    app.register_blueprint(main)
+    app.register_blueprint(main_blueprint)
 
     return app

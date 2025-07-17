@@ -3,9 +3,15 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 function App() {
-  const [idPersona, setIdPersona] = useState("");
-  const [tipoActividad, setTipoActividad] = useState("");
   const [tiposActividad, setTiposActividad] = useState([]);
+  const [formData, setFormData] = useState({
+    idTipoAct: "",
+    personaId: "",
+    fecha: "",
+    hora: "",
+    detalle: "",
+    createUser: "",
+  });
   const [mensaje, setMensaje] = useState("");
   const [mensajeColor, setMensajeColor] = useState("info");
   const [loading, setLoading] = useState(false);
@@ -13,42 +19,67 @@ function App() {
   useEffect(() => {
     axios
       .get("http://localhost:5000/actividades/tipoActividad")
-      .then((response) => {
-        setTiposActividad(response.data);
-      })
-      .catch((error) => {
-        console.error("Error al obtener tipos de actividad:", error);
-      });
+      .then((res) => setTiposActividad(res.data))
+      .catch((err) => console.error("Error al cargar actividades", err));
   }, []);
 
-  const handleSubmit = async () => {
-    if (!idPersona || !tipoActividad) {
-      setMensaje("Por favor completa todos los campos.");
-      setMensajeColor("danger");
+  const handleChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMensaje("");
+    setMensajeColor("info");
+
+    const {
+      idTipoAct,
+      personaId,
+      fecha,
+      hora,
+      detalle,
+      createUser,
+    } = formData;
+
+    if (!idTipoAct || !personaId || !fecha || !hora || !createUser) {
+      setMensaje("⚠️ Todos los campos obligatorios deben ser completados.");
+      setMensajeColor("warning");
       return;
     }
 
     setLoading(true);
+
     try {
       const response = await axios.post(
         "http://localhost:5000/actividades/create",
         {
-          id_tipo_actividad: parseInt(tipoActividad),
-          id_persona: parseInt(idPersona),
+          id_tipo_actividad: parseInt(idTipoAct),
+          id_persona: parseInt(personaId),
+          fecha,
+          hora,
+          detalle: detalle.trim() === "" ? "Detalle no proporcionado" : detalle,
+          createUser,
         }
       );
+
       setMensaje("✅ Registro exitoso.");
       setMensajeColor("success");
-    } catch (error) {
+    } catch (err) {
       if (
-        error.response &&
-        error.response.data &&
-        error.response.data.error === "Ya registrado en esta actividad"
+        err.response?.data?.error === "Ya registrado en esta actividad"
       ) {
-        setMensaje("⚠️ Ya registrado en esta actividad");
+        setMensaje("⚠️ Ya registrado en esta actividad.");
         setMensajeColor("info");
+      } else if (
+        err.response?.data?.error
+      ) {
+        setMensaje(`❌ ${err.response.data.error}`);
+        setMensajeColor("danger");
       } else {
-        setMensaje("❌ Error al registrar actividad");
+        setMensaje("❌ Error de red al registrar.");
         setMensajeColor("danger");
       }
     } finally {
@@ -56,70 +87,120 @@ function App() {
     }
   };
 
-  const handleBuscar = () => {
-    // Placeholder: implement later if needed
-    setMensaje("🔍 Buscar función aún no implementada");
-    setMensajeColor("secondary");
-  };
-
   return (
     <div className="container mt-5">
-      <h1 className="text-center mb-4">Registro de Asistencia</h1>
+      <h2 className="mb-4 text-center">Formulario de Registro de Asistencia</h2>
 
-      <div className="mb-3">
-        <label htmlFor="idPersona" className="form-label">
-          ID Persona
-        </label>
-        <input
-          type="number"
-          className="form-control"
-          id="idPersona"
-          value={idPersona}
-          onChange={(e) => setIdPersona(e.target.value)}
-          disabled={loading}
-        />
-      </div>
+      <form onSubmit={handleSubmit}>
+        {/* ID Persona */}
+        <div className="mb-3">
+          <label className="form-label">ID de Persona *</label>
+          <input
+            type="number"
+            className="form-control"
+            name="personaId"
+            value={formData.personaId}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
 
-      <div className="mb-3">
-        <label htmlFor="tipoActividad" className="form-label">
-          Tipo de Actividad
-        </label>
-        <select
-          className="form-select"
-          id="tipoActividad"
-          value={tipoActividad}
-          onChange={(e) => setTipoActividad(e.target.value)}
-          disabled={loading}
-        >
-          <option value="">Seleccionar una actividad</option>
-          {tiposActividad.map((actividad) => (
-            <option key={actividad.id} value={actividad.id}>
-              {actividad.nombre}
-            </option>
-          ))}
-        </select>
-      </div>
+        {/* Tipo de Actividad */}
+        <div className="mb-3">
+          <label className="form-label">Tipo de Actividad *</label>
+          <select
+            className="form-select"
+            name="idTipoAct"
+            value={formData.idTipoAct}
+            onChange={handleChange}
+            disabled={loading}
+          >
+            <option value="">Seleccionar</option>
+            {tiposActividad.map((tipo) => (
+              <option key={tipo.id} value={tipo.id}>
+                {tipo.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="d-flex gap-2 mb-4">
-        <button
-          className="btn btn-primary"
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? "Registrando..." : "Registrar"}
-        </button>
+        {/* Fecha */}
+        <div className="mb-3">
+          <label className="form-label">Fecha *</label>
+          <input
+            type="date"
+            className="form-control"
+            name="fecha"
+            value={formData.fecha}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
 
-        <button
-          className="btn btn-secondary"
-          onClick={handleBuscar}
-          disabled={loading}
-        >
-          Buscar
-        </button>
-      </div>
+        {/* Hora */}
+        <div className="mb-3">
+          <label className="form-label">Hora *</label>
+          <input
+            type="time"
+            className="form-control"
+            name="hora"
+            value={formData.hora}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
 
+        {/* Detalle */}
+        <div className="mb-3">
+          <label className="form-label">Detalle (opcional)</label>
+          <textarea
+            className="form-control"
+            name="detalle"
+            rows="2"
+            value={formData.detalle}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
+
+        {/* Usuario Creador */}
+        <div className="mb-3">
+          <label className="form-label">Usuario que registra *</label>
+          <input
+            type="text"
+            className="form-control"
+            name="createUser"
+            value={formData.createUser}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
+
+        {/* Botón */}
+        <div className="d-grid">
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span
+                  className="spinner-border spinner-border-sm me-2"
+                  role="status"
+                />
+                Registrando...
+              </>
+            ) : (
+              "Registrar Actividad"
+            )}
+          </button>
+        </div>
+      </form>
+
+      {/* Mensaje */}
       {mensaje && (
-        <div className={`alert alert-${mensajeColor}`} role="alert">
+        <div className={`alert alert-${mensajeColor} mt-4`} role="alert">
           {mensaje}
         </div>
       )}

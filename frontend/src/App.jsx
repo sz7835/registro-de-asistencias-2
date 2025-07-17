@@ -1,88 +1,110 @@
-import React, { useEffect, useState } from 'react'
-import axios from 'axios'
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 function App() {
-  const [idPersona, setIdPersona] = useState('')
-  const [idTipoActividad, setIdTipoActividad] = useState('')
-  const [actividades, setActividades] = useState([])
-  const [message, setMessage] = useState(null)
-  const [error, setError] = useState(null)
+  const [idPersona, setIdPersona] = useState('');
+  const [idActividad, setIdActividad] = useState('');
+  const [tiposActividad, setTiposActividad] = useState([]);
+  const [mensaje, setMensaje] = useState('');
+  const [registros, setRegistros] = useState([]);
 
+  // ✅ Load dropdown values from backend
   useEffect(() => {
-    axios.get('http://127.0.0.1:5000/actividades/tipoActividad')
-      .then(res => {
-        setActividades(res.data)
-      })
-      .catch(() => {
-        setError('No se pudo cargar las actividades')
-      })
-  }, [])
+    axios.get('http://localhost:5000/actividades/tipoActividad')
+      .then(response => setTiposActividad(response.data))
+      .catch(error => console.error('Error al cargar actividades', error));
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setMessage(null)
-    setError(null)
-
+  // ✅ POST form: Register actividad
+  const handleRegistrar = async () => {
     try {
-      const res = await axios.post('http://127.0.0.1:5000/actividades/create', {
+      const res = await axios.post('http://localhost:5000/actividades/create', {
         id_persona: parseInt(idPersona),
-        id_tipo_actividad: parseInt(idTipoActividad)
-      })
-
-      setMessage(res.data.message)
-      setIdPersona('')
-      setIdTipoActividad('')
+        id_tipo_actividad: parseInt(idActividad)
+      });
+      setMensaje(res.data.message || 'Registro exitoso');
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.error) {
-        setError(err.response.data.error)
+      if (err.response?.data?.error) {
+        setMensaje(err.response.data.error);
       } else {
-        setError('Error desconocido')
+        setMensaje('Error inesperado');
       }
     }
-  }
+  };
+
+  // ✅ GET filter: Buscar registros
+  const handleBuscar = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/actividades/filter?id_persona=${idPersona}`);
+      setRegistros(res.data);
+      setMensaje('');
+    } catch (err) {
+      setMensaje('Error al buscar registros');
+      setRegistros([]);
+    }
+  };
 
   return (
     <div className="container mt-5">
       <h2 className="mb-4">Registro de Asistencia</h2>
 
-      {message && <div className="alert alert-success">{message}</div>}
-      {error && <div className="alert alert-danger">{error}</div>}
+      <div className="mb-3">
+        <label className="form-label">ID Persona</label>
+        <input
+          type="number"
+          className="form-control"
+          value={idPersona}
+          onChange={(e) => setIdPersona(e.target.value)}
+        />
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label htmlFor="id_persona" className="form-label">ID Persona</label>
-          <input
-            type="number"
-            className="form-control"
-            id="id_persona"
-            value={idPersona}
-            onChange={(e) => setIdPersona(e.target.value)}
-            required
-          />
-        </div>
+      <div className="mb-3">
+        <label className="form-label">Tipo de Actividad</label>
+        <select
+          className="form-select"
+          value={idActividad}
+          onChange={(e) => setIdActividad(e.target.value)}
+        >
+          <option value="">Seleccionar una actividad</option>
+          {tiposActividad.map((tipo) => (
+            <option key={tipo.id} value={tipo.id}>
+              {tipo.nombre}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        <div className="mb-3">
-          <label htmlFor="id_tipo_actividad" className="form-label">Tipo de Actividad</label>
-          <select
-            className="form-select"
-            id="id_tipo_actividad"
-            value={idTipoActividad}
-            onChange={(e) => setIdTipoActividad(e.target.value)}
-            required
-          >
-            <option value="">Seleccionar una actividad</option>
-            {actividades.map(act => (
-              <option key={act.id} value={act.id}>
-                {act.nombre}
-              </option>
+      <div className="d-flex gap-2 mb-4">
+        <button className="btn btn-primary" onClick={handleRegistrar}>
+          Registrar
+        </button>
+        <button className="btn btn-secondary" onClick={handleBuscar}>
+          Buscar
+        </button>
+      </div>
+
+      {mensaje && <div className="alert alert-info">{mensaje}</div>}
+
+      {registros.length > 0 && (
+        <table className="table table-bordered mt-4">
+          <thead className="table-light">
+            <tr>
+              <th>ID Persona</th>
+              <th>ID Tipo Actividad</th>
+            </tr>
+          </thead>
+          <tbody>
+            {registros.map((r, index) => (
+              <tr key={index}>
+                <td>{r.id_persona}</td>
+                <td>{r.id_tipo_actividad}</td>
+              </tr>
             ))}
-          </select>
-        </div>
-
-        <button type="submit" className="btn btn-primary">Registrar</button>
-      </form>
+          </tbody>
+        </table>
+      )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
